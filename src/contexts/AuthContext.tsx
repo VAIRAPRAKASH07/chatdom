@@ -34,6 +34,9 @@ interface AuthContextType {
   isRegisterOpen: boolean;
   openRegisterModal: () => void;
   closeRegisterModal: () => void;
+  isGoogleModalOpen: boolean;
+  openGoogleAuthModal: () => void;
+  closeGoogleAuthModal: () => void;
   signInWithGoogle: (customEmail?: string, customName?: string) => Promise<void>;
   sendOtpEmail: (email: string) => Promise<OtpResult>;
   verifyOtpCode: (email: string, token: string) => Promise<OtpResult>;
@@ -55,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isOnboarding, setIsOnboarding] = useState<boolean>(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState<boolean>(false);
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState<boolean>(false);
   const [justGeneratedCommId, setJustGeneratedCommId] = useState<string | null>(null);
 
   // Load active session on mount
@@ -350,6 +354,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isRegisterOpen,
         openRegisterModal: () => setIsRegisterOpen(true),
         closeRegisterModal: () => setIsRegisterOpen(false),
+        isGoogleModalOpen,
+        openGoogleAuthModal: () => setIsGoogleModalOpen(true),
+        closeGoogleAuthModal: () => setIsGoogleModalOpen(false),
         signInWithGoogle,
         sendOtpEmail,
         verifyOtpCode,

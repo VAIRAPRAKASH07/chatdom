@@ -9,6 +9,7 @@ import { playChime } from '../lib/utils';
 import type { 
   Conversation, 
   Message, 
+  MessageType,
   Thought, 
   Contact, 
   ContactRequest, 
@@ -33,7 +34,13 @@ interface RealtimeContextType {
   
   // Conversation actions
   setActiveConversationId: (id: string | null) => void;
-  sendMessage: (content: string, type?: 'text' | 'image' | 'video' | 'file' | 'audio', replyToId?: string, attachmentUrl?: string) => Promise<void>;
+  sendMessage: (
+    content: string,
+    type?: MessageType,
+    replyToId?: string,
+    attachmentUrl?: string,
+    attachmentMeta?: Message['attachment_meta']
+  ) => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   reactToMessage: (messageId: string, emoji: string) => Promise<void>;
@@ -119,11 +126,12 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Send message
   const sendMessage = async (
     content: string,
-    type: 'text' | 'image' | 'video' | 'file' | 'audio' = 'text',
+    type: MessageType = 'text',
     replyToId?: string,
-    attachmentUrl?: string
+    attachmentUrl?: string,
+    attachmentMeta?: Message['attachment_meta']
   ) => {
-    if (!user || !profile || !activeConversationId || (!content.trim() && !attachmentUrl)) return;
+    if (!user || !profile || !activeConversationId || (!content.trim() && !attachmentUrl && type !== 'location' && type !== 'contact')) return;
 
     const replyTarget = replyToId
       ? activeMessages.find((m) => m.id === replyToId)
@@ -137,6 +145,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       content,
       message_type: type,
       attachment_url: attachmentUrl,
+      attachment_meta: attachmentMeta,
       reply_to_id: replyToId,
       reply_to_message: replyTarget
         ? {

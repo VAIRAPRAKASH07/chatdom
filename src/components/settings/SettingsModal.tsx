@@ -57,7 +57,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   } = useAuth();
   
   const { blockedUsers, unblockUser } = useRealtime();
-  const { isConfigured, isUnlocked, autoLockInterval, setAutoLockInterval, lockVault } = usePrivateChat();
+  const { isConfigured, isUnlocked, lockVault } = usePrivateChat();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'privacy' | 'private_chat' | 'blocked' | 'accounts'>('profile');
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
@@ -500,34 +500,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   >
                     Configure Single Vault PIN
                   </Button>
-                )}
-
-                {isConfigured && (
-                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide block mb-1.5">
-                      Auto-Lock Inactivity Interval
-                    </label>
-                    <div className="grid grid-cols-4 gap-2 text-xs">
-                      {[
-                        { val: 0, label: 'Immediate' },
-                        { val: 1, label: '1 min' },
-                        { val: 5, label: '5 min' },
-                        { val: 15, label: '15 min' },
-                      ].map((opt) => (
-                        <button
-                          key={opt.val}
-                          onClick={() => setAutoLockInterval(opt.val)}
-                          className={`p-2 rounded-xl border text-center font-medium ${
-                            autoLockInterval === opt.val
-                              ? 'border-privacy-500 bg-privacy-50 dark:bg-privacy-950 text-privacy-700 dark:text-privacy-300'
-                              : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 )}
               </div>
             )}

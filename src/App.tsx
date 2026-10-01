@@ -7,6 +7,7 @@ import { HeroSection } from './components/landing/HeroSection';
 import { HowItWorksModal } from './components/landing/HowItWorksModal';
 import { OnboardingModal } from './components/auth/OnboardingModal';
 import { RegisterModal } from './components/auth/RegisterModal';
+import { GoogleAuthModal } from './components/auth/GoogleAuthModal';
 import { MainLayout } from './components/layout/MainLayout';
 import { ShieldCheck } from 'lucide-react';
 
@@ -23,6 +24,9 @@ const AppContent: React.FC<{ isDark: boolean; onToggleTheme: () => void }> = ({
     isRegisterOpen,
     openRegisterModal,
     closeRegisterModal,
+    isGoogleModalOpen,
+    openGoogleAuthModal,
+    closeGoogleAuthModal,
     signInWithGoogle, 
     switchAccount, 
     completeOnboarding 
@@ -50,7 +54,7 @@ const AppContent: React.FC<{ isDark: boolean; onToggleTheme: () => void }> = ({
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-brand-500 selection:text-white">
         <LandingNavbar
-          onSignIn={() => signInWithGoogle()}
+          onSignIn={openGoogleAuthModal}
           onRegister={openRegisterModal}
           onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
           isDark={isDark}
@@ -59,7 +63,7 @@ const AppContent: React.FC<{ isDark: boolean; onToggleTheme: () => void }> = ({
 
         <main className="flex-1">
           <HeroSection
-            onSignIn={() => signInWithGoogle()}
+            onSignIn={openGoogleAuthModal}
             onRegister={openRegisterModal}
             onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
             onSelectPresetAccount={(accKey) => switchAccount(accKey)}
@@ -84,13 +88,19 @@ const AppContent: React.FC<{ isDark: boolean; onToggleTheme: () => void }> = ({
         <HowItWorksModal
           isOpen={isHowItWorksOpen}
           onClose={() => setIsHowItWorksOpen(false)}
-          onSignIn={() => signInWithGoogle()}
+          onSignIn={openGoogleAuthModal}
         />
 
         {/* Base Registration Modal */}
         <RegisterModal
           isOpen={isRegisterOpen}
           onClose={closeRegisterModal}
+        />
+
+        {/* Dedicated Google Sign In / Sign Up Modal */}
+        <GoogleAuthModal
+          isOpen={isGoogleModalOpen}
+          onClose={closeGoogleAuthModal}
         />
       </div>
     );

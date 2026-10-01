@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Plus, Image as ImageIcon, Sparkles, Heart, Smile, ThumbsUp, Cat, Flame } from 'lucide-react';
 
 interface StickerPickerProps {
   onSelectSticker: (stickerUrl: string, altText: string) => void;
   onClose: () => void;
 }
 
-// Curated sticker sets using inline emoji art as SVG data URLs to avoid external dependencies
-const STICKER_CATEGORIES = [
+const STICKER_PACKS = [
   {
-    label: '😊 Feelings',
+    id: 'feelings',
+    name: 'Feelings',
+    icon: '😊',
     stickers: [
       { emoji: '😂', alt: 'Laughing' },
       { emoji: '😍', alt: 'Love Eyes' },
@@ -23,10 +24,16 @@ const STICKER_CATEGORIES = [
       { emoji: '🤔', alt: 'Thinking' },
       { emoji: '😇', alt: 'Angel' },
       { emoji: '🫶', alt: 'Heart Hands' },
+      { emoji: '🤯', alt: 'Mind Blown' },
+      { emoji: '😜', alt: 'Winking Tongue' },
+      { emoji: '🤡', alt: 'Clown' },
+      { emoji: '👻', alt: 'Ghost' },
     ],
   },
   {
-    label: '❤️ Love',
+    id: 'love',
+    name: 'Love',
+    icon: '❤️',
     stickers: [
       { emoji: '❤️', alt: 'Red Heart' },
       { emoji: '💕', alt: 'Two Hearts' },
@@ -39,11 +46,13 @@ const STICKER_CATEGORIES = [
       { emoji: '💐', alt: 'Bouquet' },
       { emoji: '😘', alt: 'Kiss' },
       { emoji: '🥰', alt: 'Smiling Hearts' },
-      { emoji: '💑', alt: 'Couple' },
+      { emoji: '👩‍❤️‍👨', alt: 'Couple' },
     ],
   },
   {
-    label: '🎉 Celebrate',
+    id: 'celebrate',
+    name: 'Party',
+    icon: '🎉',
     stickers: [
       { emoji: '🎉', alt: 'Party' },
       { emoji: '🎊', alt: 'Confetti' },
@@ -60,7 +69,9 @@ const STICKER_CATEGORIES = [
     ],
   },
   {
-    label: '👍 Reactions',
+    id: 'reactions',
+    name: 'Reactions',
+    icon: '👍',
     stickers: [
       { emoji: '👍', alt: 'Thumbs Up' },
       { emoji: '👎', alt: 'Thumbs Down' },
@@ -77,7 +88,9 @@ const STICKER_CATEGORIES = [
     ],
   },
   {
-    label: '🐾 Fun',
+    id: 'animals',
+    name: 'Cute',
+    icon: '🐱',
     stickers: [
       { emoji: '🐶', alt: 'Dog' },
       { emoji: '🐱', alt: 'Cat' },
@@ -95,62 +108,86 @@ const STICKER_CATEGORIES = [
   },
 ];
 
-/**
- * Converts an emoji to a lightweight sticker-style "URL" by encoding it
- * as a reference to the emoji string itself. The MessageBubble renders
- * stickers from attachment_meta.sticker_emoji.
- */
-function emojiToStickerUrl(emoji: string): string {
-  return `sticker:${emoji}`;
-}
-
 export const StickerPicker: React.FC<StickerPickerProps> = ({
   onSelectSticker,
   onClose,
 }) => {
-  const [activeCategory, setActiveCategory] = useState(0);
+  const [activePackIndex, setActivePackIndex] = useState(0);
+  const [customStickerPreview, setCustomStickerPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadCustomSticker = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setCustomStickerPreview(url);
+    onSelectSticker(url, file.name);
+    e.target.value = '';
+  };
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-slide-up w-72 sm:w-80">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-          Stickers
-        </span>
-        <button
-          onClick={onClose}
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+            Stickers
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          {/* Custom Sticker Upload button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-[11px] font-semibold transition-colors"
+            title="Upload image sticker"
+          >
+            <Plus className="w-3 h-3" />
+            <span>Custom</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleUploadCustomSticker}
+          />
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Category Tabs */}
-      <div className="flex overflow-x-auto border-b border-slate-100 dark:border-slate-800 no-scrollbar">
-        {STICKER_CATEGORIES.map((cat, i) => (
+      <div className="flex overflow-x-auto border-b border-slate-100 dark:border-slate-800 no-scrollbar bg-slate-50/50 dark:bg-slate-950/40">
+        {STICKER_PACKS.map((pack, i) => (
           <button
-            key={i}
-            onClick={() => setActiveCategory(i)}
-            className={`flex-shrink-0 px-3 py-2 text-base transition-colors ${
-              activeCategory === i
-                ? 'border-b-2 border-brand-500 bg-brand-50 dark:bg-brand-950/40'
-                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            key={pack.id}
+            onClick={() => setActivePackIndex(i)}
+            className={`flex-shrink-0 px-3 py-1.5 text-sm transition-all ${
+              activePackIndex === i
+                ? 'border-b-2 border-brand-500 bg-white dark:bg-slate-900 font-bold'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 hover:opacity-100'
             }`}
-            title={cat.label}
+            title={pack.name}
           >
-            {cat.label.split(' ')[0]}
+            {pack.icon}
           </button>
         ))}
       </div>
 
       {/* Sticker Grid */}
-      <div className="grid grid-cols-6 gap-1 p-2 max-h-44 overflow-y-auto">
-        {STICKER_CATEGORIES[activeCategory].stickers.map((s, i) => (
+      <div className="grid grid-cols-4 sm:grid-cols-6 gap-1 p-2 max-h-48 overflow-y-auto">
+        {STICKER_PACKS[activePackIndex].stickers.map((s, i) => (
           <button
             key={i}
-            onClick={() => onSelectSticker(emojiToStickerUrl(s.emoji), s.alt)}
+            onClick={() => onSelectSticker(`sticker:${s.emoji}`, s.alt)}
             title={s.alt}
-            className="flex items-center justify-center text-2xl w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all hover:scale-125 active:scale-95"
+            className="flex items-center justify-center text-3xl w-11 h-11 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all hover:scale-125 active:scale-95"
           >
             {s.emoji}
           </button>

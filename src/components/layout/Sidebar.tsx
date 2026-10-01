@@ -10,7 +10,8 @@ import {
   LogOut, 
   Copy, 
   Check,
-  Plus
+  Plus,
+  ArrowLeft
 } from 'lucide-react';
 import { Avatar } from '../common/Avatar';
 import { Button } from '../common/Button';

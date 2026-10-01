@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
-import { Mail, ShieldCheck, KeyRound, Lock, ArrowRight, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { Mail, ShieldCheck, KeyRound, Lock, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import { usePrivateChat } from '../../contexts/PrivateChatContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -99,8 +99,8 @@ export const PrivateChatRecoveryModal: React.FC<PrivateChatRecoveryModalProps> =
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Recover Private Chat Password"
-      subtitle="Verify your identity with your authenticated Google Account"
+      title="Google Account OTP Verification"
+      subtitle="Verify identity to reset your Private Chat Mobile PIN"
       maxWidth="md"
     >
       <div className="space-y-5 text-left">
@@ -129,7 +129,7 @@ export const PrivateChatRecoveryModal: React.FC<PrivateChatRecoveryModalProps> =
 
           <div className="text-xs min-w-0 flex-1">
             <span className="font-bold text-slate-900 dark:text-white block">
-              Google Account Authentication
+              Google Account Identity Verification
             </span>
             <span className="font-mono text-blue-600 dark:text-blue-400 font-semibold truncate block mt-0.5">
               {userEmail}
@@ -140,16 +140,16 @@ export const PrivateChatRecoveryModal: React.FC<PrivateChatRecoveryModalProps> =
           </div>
         </div>
 
-        {/* Live Simulated Gmail Delivery Notification */}
+        {/* Live Simulated Google Email Delivery Notification */}
         {activeCodeBanner && (
           <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100 text-xs flex items-start gap-2.5 animate-slide-up-slow shadow-sm">
             <Mail className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <span className="font-bold block">
-                📬 Google Security Code Sent to {codeSentTo}:
+                📬 Google Security OTP Code Sent to {codeSentTo}:
               </span>
               <div className="mt-1 flex items-center gap-2">
-                <span>Your 6-digit recovery code is:</span>
+                <span>Your 6-digit OTP verification code is:</span>
                 <span className="font-mono font-extrabold text-sm px-2 py-0.5 bg-emerald-200/60 dark:bg-emerald-900/80 rounded-lg text-emerald-900 dark:text-emerald-100 tracking-wider">
                   {activeCodeBanner}
                 </span>
@@ -162,7 +162,7 @@ export const PrivateChatRecoveryModal: React.FC<PrivateChatRecoveryModalProps> =
         {step === 'send_code' && (
           <div className="space-y-4 pt-2">
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Click below to generate and deliver a 6-digit one-time security code to your registered Google/Gmail address.
+              Click below to send a 6-digit OTP security code to your Google email address to verify identity and reset your PIN.
             </p>
 
             <Button
@@ -174,8 +174,21 @@ export const PrivateChatRecoveryModal: React.FC<PrivateChatRecoveryModalProps> =
               className="w-full rounded-2xl py-3 text-sm shadow-md shadow-brand-500/20"
               leftIcon={<Mail className="w-4 h-4" />}
             >
-              Send 6-Digit Code to Gmail
+              Send 6-Digit OTP Code to Google Email
             </Button>
+
+            <div className="pt-2 flex items-center justify-start border-t border-slate-100 dark:border-slate-800">
+              {/* Back / Recursion button */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleClose}
+                leftIcon={<ArrowLeft className="w-4 h-4" />}
+              >
+                Return to Previous Page
+              </Button>
+            </div>
           </div>
         )}
 
@@ -184,7 +197,7 @@ export const PrivateChatRecoveryModal: React.FC<PrivateChatRecoveryModalProps> =
           <form onSubmit={handleResetPassword} className="space-y-4 pt-1">
             {/* 6-Digit OTP */}
             <Input
-              label="6-Digit Verification Code"
+              label="6-Digit Verification Code (OTP)"
               placeholder="e.g. 123456"
               maxLength={6}
               value={otpCode}
@@ -198,7 +211,7 @@ export const PrivateChatRecoveryModal: React.FC<PrivateChatRecoveryModalProps> =
 
             {/* New PIN */}
             <Input
-              label="New Vault PIN / Password (4-8 digits)"
+              label="New Mobile PIN (4-8 digits)"
               type="password"
               placeholder="••••"
               maxLength={8}
@@ -212,7 +225,7 @@ export const PrivateChatRecoveryModal: React.FC<PrivateChatRecoveryModalProps> =
 
             {/* Confirm New PIN */}
             <Input
-              label="Confirm New PIN"
+              label="Confirm New Mobile PIN"
               type="password"
               placeholder="••••"
               maxLength={8}
@@ -232,18 +245,25 @@ export const PrivateChatRecoveryModal: React.FC<PrivateChatRecoveryModalProps> =
             )}
 
             <div className="pt-2 flex items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
-              <button
+              {/* Back / Recursion button */}
+              <Button
                 type="button"
-                onClick={handleSendCode}
-                className="text-xs text-brand-600 dark:text-brand-400 hover:underline font-medium"
+                variant="ghost"
+                size="sm"
+                onClick={handleClose}
+                leftIcon={<ArrowLeft className="w-4 h-4" />}
               >
-                Resend code
-              </button>
+                Return to Previous Page
+              </Button>
 
-              <div className="flex gap-2">
-                <Button type="button" variant="ghost" size="sm" onClick={handleClose}>
-                  Cancel
-                </Button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSendCode}
+                  className="text-xs text-brand-600 dark:text-brand-400 hover:underline font-medium pr-1"
+                >
+                  Resend code
+                </button>
                 <Button
                   type="submit"
                   variant="privacy"
@@ -252,7 +272,7 @@ export const PrivateChatRecoveryModal: React.FC<PrivateChatRecoveryModalProps> =
                   disabled={otpCode.length !== 6 || newPin.length < 4 || confirmPin.length < 4}
                   leftIcon={<ShieldCheck className="w-4 h-4" />}
                 >
-                  Verify & Reset Password
+                  Verify & Reset PIN
                 </Button>
               </div>
             </div>

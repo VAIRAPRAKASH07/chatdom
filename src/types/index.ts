@@ -4,7 +4,7 @@
 
 export type AudienceType = 'everyone' | 'contacts' | 'close_friends' | 'nobody';
 export type PrivacyOption = 'everyone' | 'contacts' | 'nobody';
-export type MessageType = 'text' | 'image' | 'video' | 'file' | 'audio' | 'system';
+export type MessageType = 'text' | 'image' | 'video' | 'file' | 'audio' | 'sticker' | 'location' | 'contact' | 'system';
 export type RequestStatus = 'pending' | 'accepted' | 'rejected' | 'canceled';
 
 export interface Profile {
@@ -105,6 +105,14 @@ export interface Message {
     duration?: number;
     width?: number;
     height?: number;
+    latitude?: number;
+    longitude?: number;
+    address?: string;
+    contact_name?: string;
+    contact_communication_id?: string;
+    contact_avatar?: string;
+    sticker_pack?: string;
+    sticker_alt?: string;
   };
   reply_to_id?: string;
   reply_to_message?: {
@@ -160,7 +168,7 @@ export interface PrivateChatVault {
   user_id: string;
   pin_salt: string;
   pin_hash: string;
-  auto_lock_interval: number; // in minutes (0 = immediately, 1, 5, 15)
+  auto_lock_interval: number; // Always 0 (time options removed, single-password policy)
   failed_attempts: number;
   locked_until?: string;
   created_at: string;

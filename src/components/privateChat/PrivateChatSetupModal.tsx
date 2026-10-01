@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
-import { Lock, ShieldCheck, Clock, Check, KeyRound, Mail, AlertTriangle } from 'lucide-react';
+import { Lock, ShieldCheck, Mail, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { usePrivateChat } from '../../contexts/PrivateChatContext';
 import { PrivateChatRecoveryModal } from './PrivateChatRecoveryModal';
 
@@ -19,7 +19,6 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
 
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
-  const [autoLockInterval, setAutoLockInterval] = useState<number>(5);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
@@ -39,7 +38,7 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
     }
 
     setIsSubmitting(true);
-    const success = await setupPin(pin, autoLockInterval);
+    const success = await setupPin(pin);
     setIsSubmitting(false);
 
     if (success) {
@@ -51,7 +50,7 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
     }
   };
 
-  // If already configured, enforce strict single-password rule with Gmail verification required
+  // If already configured, enforce strict single-password rule with Google verification required
   if (isConfigured) {
     return (
       <>
@@ -59,7 +58,7 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
           isOpen={isOpen && !isRecoveryOpen}
           onClose={onClose}
           title="Private Chat Password Security"
-          subtitle="Single-password policy with Gmail identity verification"
+          subtitle="Single-password policy with Google Account identity verification"
           maxWidth="md"
         >
           <div className="space-y-5 text-left py-2">
@@ -72,7 +71,7 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
                   Single Password Protection Policy
                 </span>
                 <p className="text-amber-800 dark:text-amber-300 leading-relaxed">
-                  Your private chat vault is already configured with your primary security password. To prevent unauthorized resets, changing or recovering this password requires verification through your authenticated Gmail account.
+                  Your private chat vault is configured with your primary security PIN. To prevent unauthorized resets, changing or recovering this password requires verification through your Google account.
                 </p>
               </div>
             </div>
@@ -83,7 +82,7 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
                 <span>Vault Status: Configured & Encrypted</span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Click below to start Google Account verification and receive a 6-digit OTP code to update your password.
+                Click below to start Google Account verification and receive a 6-digit OTP code to update your PIN.
               </p>
               <Button
                 variant="primary"
@@ -92,13 +91,19 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
                 onClick={() => setIsRecoveryOpen(true)}
                 leftIcon={<Mail className="w-4 h-4" />}
               >
-                Verify with Gmail to Change Password
+                Verify with Google OTP to Reset PIN
               </Button>
             </div>
 
-            <div className="pt-2 flex justify-end">
-              <Button variant="secondary" size="sm" onClick={onClose}>
-                Close
+            <div className="pt-2 flex items-center justify-between">
+              {/* Back / Recursion button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                leftIcon={<ArrowLeft className="w-4 h-4" />}
+              >
+                Return to Previous Page
               </Button>
             </div>
           </div>
@@ -120,14 +125,14 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Configure Private Chat Password"
-      subtitle="Shield intimate conversations with client-side hashed PIN authentication"
+      title="Set Private Chat Entry PIN"
+      subtitle="Set your secret PIN once to protect private conversations (mobile-style PIN unlock)"
       maxWidth="md"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 text-left">
         <div>
           <Input
-            label="Create Vault PIN / Password (4-8 Digits)"
+            label="Create Vault Mobile PIN (4-8 Digits)"
             type="password"
             maxLength={8}
             placeholder="••••"
@@ -140,7 +145,7 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
 
         <div>
           <Input
-            label="Confirm PIN / Password"
+            label="Confirm Mobile PIN"
             type="password"
             maxLength={8}
             placeholder="••••"
@@ -150,34 +155,6 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
           />
         </div>
 
-        {/* Auto Lock Interval Selector */}
-        <div>
-          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide block mb-1.5">
-            Auto-lock Vault after inactivity
-          </label>
-          <div className="grid grid-cols-4 gap-2 text-xs">
-            {[
-              { val: 0, label: 'Immediate' },
-              { val: 1, label: '1 min' },
-              { val: 5, label: '5 min' },
-              { val: 15, label: '15 min' },
-            ].map((opt) => (
-              <button
-                key={opt.val}
-                type="button"
-                onClick={() => setAutoLockInterval(opt.val)}
-                className={`p-2 rounded-xl border text-center font-medium transition-all ${
-                  autoLockInterval === opt.val
-                    ? 'border-privacy-500 bg-privacy-50 dark:bg-privacy-950 text-privacy-700 dark:text-privacy-300'
-                    : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {error && (
           <p className="text-xs font-semibold text-rose-500">{error}</p>
         )}
@@ -185,14 +162,22 @@ export const PrivateChatSetupModal: React.FC<PrivateChatSetupModalProps> = ({
         <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
           <span>
-            Single-Password policy: This PIN will be protected by your authenticated Google Account. It is never stored in plaintext.
+            Single-Password policy: Set your PIN once like a normal mobile screen unlock. If forgotten, verify ownership via Google Account OTP.
           </span>
         </div>
 
-        <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
+        <div className="pt-2 flex items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
+          {/* Back / Recursion button */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            leftIcon={<ArrowLeft className="w-4 h-4" />}
+          >
+            Return to Previous Page
           </Button>
+
           <Button
             type="submit"
             variant="privacy"

@@ -13,7 +13,7 @@ interface RegisterModalProps {
 type Step = 'email' | 'otp' | 'success';
 
 export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose }) => {
-  const { sendOtpEmail, verifyOtpCode, signInWithGoogle, isLoading } = useAuth();
+  const { sendOtpEmail, verifyOtpCode, openGoogleAuthModal, isLoading } = useAuth();
 
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
@@ -83,8 +83,8 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
   };
 
   const handleGoogleAuth = async () => {
-    await signInWithGoogle();
     handleClose();
+    openGoogleAuthModal();
   };
 
   return (

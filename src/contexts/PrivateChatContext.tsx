@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { generateSalt, hashPin, verifyPin } from '../lib/crypto';
 import { playChime } from '../lib/utils';
@@ -7,17 +7,15 @@ import type { PrivateChatVault } from '../types';
 interface PrivateChatContextType {
   isConfigured: boolean;
   isUnlocked: boolean;
-  autoLockInterval: number; // in minutes
   failedAttempts: number;
   isLockedOut: boolean;
   lockoutRemainingSeconds: number;
-  setupPin: (newPin: string, autoLockMinutes?: number) => Promise<boolean>;
+  setupPin: (newPin: string) => Promise<boolean>;
   changePin: (oldPin: string, newPin: string) => Promise<{ success: boolean; error?: string }>;
   sendGmailVerificationCode: () => Promise<{ success: boolean; email: string; code: string }>;
-  verifyAndResetPinWithGmail: (code: string, newPin: string, autoLockMinutes?: number) => Promise<{ success: boolean; error?: string }>;
+  verifyAndResetPinWithGmail: (code: string, newPin: string) => Promise<{ success: boolean; error?: string }>;
   unlockWithPin: (pin: string) => Promise<{ success: boolean; error?: string }>;
   lockVault: () => void;
-  setAutoLockInterval: (minutes: number) => Promise<void>;
   activeRecoveryCode: string | null;
   recoveryEmail: string | null;
 }
@@ -36,8 +34,6 @@ export const PrivateChatProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [activeRecoveryCode, setActiveRecoveryCode] = useState<string | null>(null);
   const [recoveryCodeExpiry, setRecoveryCodeExpiry] = useState<number | null>(null);
   const [recoveryEmail, setRecoveryEmail] = useState<string | null>(null);
-
-  const lastActivityRef = useRef<number>(Date.now());
 
   // Load vault configuration for current user
   useEffect(() => {
@@ -70,54 +66,8 @@ export const PrivateChatProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [isUnlocked]);
 
-  // Activity Tracker for Auto-Lock
-  useEffect(() => {
-    if (!isUnlocked || !vault) return;
-
-    const intervalMinutes = vault.auto_lock_interval ?? 5;
-    if (intervalMinutes === 0) return; // 0 handled on blur
-
-    const resetTimer = () => {
-      lastActivityRef.current = Date.now();
-    };
-
-    const checkInactivity = () => {
-      const elapsed = Date.now() - lastActivityRef.current;
-      if (elapsed >= intervalMinutes * 60 * 1000) {
-        lockVault();
-      }
-    };
-
-    const intervalId = window.setInterval(checkInactivity, 10000); // Check every 10s
-
-    window.addEventListener('pointerdown', resetTimer);
-    window.addEventListener('keydown', resetTimer);
-    window.addEventListener('touchstart', resetTimer);
-    window.addEventListener('scroll', resetTimer);
-
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('pointerdown', resetTimer);
-      window.removeEventListener('keydown', resetTimer);
-      window.removeEventListener('touchstart', resetTimer);
-      window.removeEventListener('scroll', resetTimer);
-    };
-  }, [isUnlocked, vault, lockVault]);
-
-  // Handle Tab Blur / Visibility Change Auto-Lock
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && vault && vault.auto_lock_interval === 0) {
-        lockVault();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [vault, lockVault]);
-
   // Setup Initial PIN (Allowed only once when not configured)
-  const setupPin = async (newPin: string, autoLockMinutes: number = 5): Promise<boolean> => {
+  const setupPin = async (newPin: string): Promise<boolean> => {
     if (!user || newPin.length < 4) return false;
     try {
       const salt = generateSalt(16);
@@ -126,7 +76,7 @@ export const PrivateChatProvider: React.FC<{ children: React.ReactNode }> = ({ c
         user_id: user.id,
         pin_salt: salt,
         pin_hash: hash,
-        auto_lock_interval: autoLockMinutes,
+        auto_lock_interval: 0,
         failed_attempts: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -187,8 +137,7 @@ export const PrivateChatProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Verify Gmail Code and Reset Vault PIN
   const verifyAndResetPinWithGmail = async (
     code: string,
-    newPin: string,
-    autoLockMinutes: number = 5
+    newPin: string
   ): Promise<{ success: boolean; error?: string }> => {
     if (!activeRecoveryCode || !recoveryCodeExpiry) {
       return { success: false, error: 'No active verification code found. Please request a new code.' };
@@ -212,7 +161,7 @@ export const PrivateChatProvider: React.FC<{ children: React.ReactNode }> = ({ c
         user_id: user.id,
         pin_salt: salt,
         pin_hash: hash,
-        auto_lock_interval: vault?.auto_lock_interval ?? autoLockMinutes,
+        auto_lock_interval: 0,
         failed_attempts: 0,
         created_at: vault?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -245,7 +194,6 @@ export const PrivateChatProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (isValid) {
       setFailedAttempts(0);
       setIsUnlocked(true);
-      lastActivityRef.current = Date.now();
       playChime('unlock');
       return { success: true };
     } else {
@@ -266,16 +214,8 @@ export const PrivateChatProvider: React.FC<{ children: React.ReactNode }> = ({ c
           });
         }, 1000);
       }
-      return { success: false, error: 'Incorrect PIN. Please try again or use Gmail Recovery.' };
+      return { success: false, error: 'Incorrect PIN. Please try again or use Google Recovery.' };
     }
-  };
-
-  // Update Auto-Lock Interval
-  const setAutoLockInterval = async (minutes: number) => {
-    if (!vault || !user) return;
-    const updated = { ...vault, auto_lock_interval: minutes, updated_at: new Date().toISOString() };
-    setVault(updated);
-    localStorage.setItem(`messager_vault_${user.id}`, JSON.stringify(updated));
   };
 
   return (
@@ -283,7 +223,6 @@ export const PrivateChatProvider: React.FC<{ children: React.ReactNode }> = ({ c
       value={{
         isConfigured: Boolean(vault),
         isUnlocked,
-        autoLockInterval: vault?.auto_lock_interval ?? 5,
         failedAttempts,
         isLockedOut,
         lockoutRemainingSeconds,
@@ -293,7 +232,6 @@ export const PrivateChatProvider: React.FC<{ children: React.ReactNode }> = ({ c
         verifyAndResetPinWithGmail,
         unlockWithPin,
         lockVault,
-        setAutoLockInterval,
         activeRecoveryCode,
         recoveryEmail,
       }}

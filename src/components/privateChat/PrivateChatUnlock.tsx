@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { Lock, Unlock, KeyRound, Delete, Shield, AlertCircle, HelpCircle, Mail } from 'lucide-react';
+import { Lock, Unlock, KeyRound, Delete, AlertCircle, Mail, ArrowLeft } from 'lucide-react';
 import { usePrivateChat } from '../../contexts/PrivateChatContext';
 import { PrivateChatRecoveryModal } from './PrivateChatRecoveryModal';
 
@@ -70,7 +70,7 @@ export const PrivateChatUnlock: React.FC<PrivateChatUnlockProps> = ({
         subtitle="Protect sensitive conversations behind a secret PIN"
         maxWidth="sm"
       >
-        <div className="text-center space-y-4 py-3">
+        <div className="text-center space-y-4 py-3 select-none">
           <div className="w-14 h-14 rounded-3xl bg-privacy-50 dark:bg-privacy-950/80 text-privacy-600 dark:text-privacy-400 flex items-center justify-center mx-auto shadow-sm">
             <Lock className="w-7 h-7" />
           </div>
@@ -91,6 +91,19 @@ export const PrivateChatUnlock: React.FC<PrivateChatUnlockProps> = ({
           >
             Create Vault PIN
           </Button>
+
+          <div className="pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="w-full"
+              leftIcon={<ArrowLeft className="w-4 h-4" />}
+            >
+              Return to Previous Page
+            </Button>
+          </div>
         </div>
       </Modal>
     );
@@ -102,10 +115,10 @@ export const PrivateChatUnlock: React.FC<PrivateChatUnlockProps> = ({
         isOpen={isOpen && !isRecoveryOpen}
         onClose={onClose}
         title="Unlock Private Chat"
-        subtitle="Your private conversations are protected"
+        subtitle="Mobile PIN unlocking security"
         maxWidth="sm"
       >
-        <div className="space-y-6 text-center select-none">
+        <div className="space-y-5 text-center select-none">
           {/* Soft Lock Icon */}
           <div className="w-12 h-12 rounded-2xl bg-privacy-50 dark:bg-privacy-950/80 text-privacy-600 dark:text-privacy-400 flex items-center justify-center mx-auto">
             <Lock className="w-6 h-6" />
@@ -191,21 +204,33 @@ export const PrivateChatUnlock: React.FC<PrivateChatUnlockProps> = ({
             Unlock Vault
           </Button>
 
-          {/* Forgot Password via Gmail Authentication Link */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+          {/* Forgot Password Button & Back Button Container */}
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2.5">
             <button
               type="button"
               onClick={() => setIsRecoveryOpen(true)}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 font-medium transition-colors"
+              className="w-full py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
             >
-              <Mail className="w-3.5 h-3.5 text-brand-500" />
-              <span>Forgot password? Verify with Gmail</span>
+              <Mail className="w-4 h-4 text-brand-500" />
+              <span>Forgot Password? Verify with Google OTP</span>
             </button>
+
+            {/* Recursion / Back button */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="w-full rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400"
+              leftIcon={<ArrowLeft className="w-4 h-4" />}
+            >
+              Return to Previous Page
+            </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Gmail Identity Verification Recovery Modal */}
+      {/* Google Identity OTP Verification Recovery Modal */}
       <PrivateChatRecoveryModal
         isOpen={isRecoveryOpen}
         onClose={() => setIsRecoveryOpen(false)}
