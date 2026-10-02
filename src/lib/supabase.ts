@@ -8,7 +8,6 @@ export const isLiveSupabaseConfigured = Boolean(
   supabaseUrl && 
   supabaseAnonKey && 
   !supabaseUrl.includes('your-project-ref') && 
-  !supabaseUrl.includes('bdiskkrbeaexjmzfvplc') &&
   !supabaseAnonKey.includes('your-supabase-anon-key')
 );
 
