@@ -38,7 +38,7 @@ interface AuthContextType {
   openGoogleAuthModal: () => void;
   closeGoogleAuthModal: () => void;
   signInWithGoogle: (customEmail?: string, customName?: string) => Promise<void>;
-  sendOtpEmail: (email: string) => Promise<OtpResult>;
+  sendOtpEmail: (email: string, username?: string) => Promise<OtpResult>;
   verifyOtpCode: (email: string, token: string) => Promise<OtpResult>;
   deleteAccount: (userId?: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -213,7 +213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ─── Send OTP Email ────────────────────────────────────────────────────────
-  const sendOtpEmail = async (email: string): Promise<OtpResult> => {
+  const sendOtpEmail = async (email: string, username?: string): Promise<OtpResult> => {
     const trimmedEmail = email.trim().toLowerCase();
 
     // 1. Check if email already exists in Database / Profiles
@@ -263,6 +263,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { error } = await supabase.auth.signInWithOtp({
           email: trimmedEmail,
           options: {
+            data: username ? { full_name: username } : undefined,
             shouldCreateUser: true,
             emailRedirectTo: undefined, // OTP code flow
           },

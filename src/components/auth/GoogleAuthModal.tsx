@@ -136,77 +136,9 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
           1-Click Google Sign In / Sign Up
         </Button>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-2">
-          <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-          <span className="text-xs uppercase font-semibold text-slate-400">or enter Google email</span>
-          <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-        </div>
-
-        {/* Manual Google Account Input Form */}
-        <form onSubmit={handleCustomGoogleSubmit} className="space-y-4">
-          <Input
-            label="Google Email Address"
-            type="email"
-            placeholder="e.g. yourname@gmail.com"
-            value={googleEmail}
-            onChange={(e) => {
-              setGoogleEmail(e.target.value);
-              if (error) setError('');
-            }}
-            leftIcon={<Mail className="w-4 h-4 text-brand-500" />}
-          />
-
-          <Input
-            label="Display Name (Optional)"
-            type="text"
-            placeholder="e.g. Alex Rivera"
-            value={googleName}
-            onChange={(e) => setGoogleName(e.target.value)}
-            leftIcon={<User className="w-4 h-4 text-brand-500" />}
-          />
-
-          {error && (
-            <p className="text-xs font-semibold text-rose-500">{error}</p>
-          )}
-
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-between text-xs">
-            <span className="text-slate-600 dark:text-slate-400">First time here?</span>
-            <button
-              type="button"
-              onClick={() => {
-                handleClose();
-                openRegisterModal();
-              }}
-              className="font-semibold text-brand-600 dark:text-brand-400 hover:underline"
-            >
-              Sign Up with Email OTP →
-            </button>
-          </div>
-
-          <div className="pt-2 flex items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              leftIcon={<ArrowLeft className="w-4 h-4" />}
-            >
-              Return to Previous Page
-            </Button>
-
-            <Button
-              type="submit"
-              variant="teal"
-              size="sm"
-              isLoading={isSubmitting || isLoading}
-              disabled={!googleEmail.trim()}
-              rightIcon={<ArrowRight className="w-4 h-4" />}
-            >
-              Continue with Google
-            </Button>
-          </div>
-        </form>
+        {error && (
+          <p className="text-xs font-semibold text-rose-500 mt-2">{error}</p>
+        )}
       </div>
     </Modal>
   );

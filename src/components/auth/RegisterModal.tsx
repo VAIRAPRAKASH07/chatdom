@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
-import { ShieldCheck, KeyRound, Mail, ArrowRight, CheckCircle2, RefreshCw } from 'lucide-react';
+import { ShieldCheck, KeyRound, Mail, ArrowRight, CheckCircle2, RefreshCw, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface RegisterModalProps {
@@ -17,6 +17,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
 
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [error, setError] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -24,6 +25,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
   const handleClose = () => {
     setStep('email');
     setEmail('');
+    setUsername('');
     setOtpCode('');
     setError('');
     onClose();
@@ -35,6 +37,10 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
       setError('Please enter your email address.');
       return;
     }
+    if (!username.trim()) {
+      setError('Please enter a username.');
+      return;
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       setError('Please enter a valid email address.');
@@ -43,7 +49,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
     setError('');
     setIsSending(true);
     try {
-      const result = await sendOtpEmail(email.trim());
+      const result = await sendOtpEmail(email.trim(), username.trim());
       if (result.error) {
         setError(result.error);
       } else {
@@ -115,6 +121,18 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
         {step === 'email' && (
           <form onSubmit={handleSendOtp} className="space-y-4">
             <Input
+              label="Your Username"
+              type="text"
+              placeholder="e.g. Alex Rivera"
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                if (error) setError('');
+              }}
+              autoFocus
+              leftIcon={<User className="w-4 h-4" />}
+            />
+            <Input
               label="Your Email Address"
               type="email"
               placeholder="e.g. you@gmail.com"
@@ -124,7 +142,6 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
                 if (error) setError('');
               }}
               error={error && !error.includes('already have an account') ? error : undefined}
-              autoFocus
               leftIcon={<Mail className="w-4 h-4" />}
             />
 
