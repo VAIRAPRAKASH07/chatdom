@@ -133,7 +133,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Fallback: If DB trigger is not created yet, client-side auto-provision profile
     if (!prof) {
-      const generatedCommId = generateServerCommunicationId();
+      const storedCommId = localStorage.getItem(`messager_comm_id_${userId}`);
+      const generatedCommId = storedCommId || generateServerCommunicationId();
       const { data: { user: currentUser } } = await supabase!.auth.getUser();
       const metaName = currentUser?.user_metadata?.full_name || currentUser?.user_metadata?.name;
 
@@ -148,6 +149,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       await supabase!.from('profiles').upsert(newProf);
       prof = newProf;
+    }
+
+    // Persist permanent Communication ID locally so it never changes on page reloads
+    if (prof?.communication_id) {
+      localStorage.setItem(`messager_comm_id_${userId}`, prof.communication_id);
     }
 
     setProfile(prof);
