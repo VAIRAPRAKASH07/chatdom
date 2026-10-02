@@ -19,6 +19,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [sandboxCode, setSandboxCode] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [isSending, setIsSending] = useState(false);
 
@@ -27,6 +28,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
     setEmail('');
     setUsername('');
     setOtpCode('');
+    setSandboxCode(null);
     setError('');
     onClose();
   };
@@ -53,6 +55,9 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
       if (result.error) {
         setError(result.error);
       } else {
+        if (result.mockOtpCode) {
+          setSandboxCode(result.mockOtpCode);
+        }
         setStep('otp');
       }
     } finally {
@@ -188,6 +193,12 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
                 We sent a 6-digit code to{' '}
                 <span className="font-semibold text-brand-600 dark:text-brand-400">{email}</span>
               </p>
+
+              {sandboxCode && (
+                <div className="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700/60 text-amber-800 dark:text-amber-200 text-xs text-center font-medium">
+                  ⚡ Sandbox Mode: Your verification code is <span className="font-bold font-mono text-sm underline">{sandboxCode}</span>
+                </div>
+              )}
             </div>
 
             <Input

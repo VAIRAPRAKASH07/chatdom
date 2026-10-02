@@ -541,3 +541,49 @@ USING (auth.uid() = user_id);
 CREATE POLICY "Users can create reports"
 ON public.reports FOR INSERT
 WITH CHECK (auth.uid() = reporter_id);
+
+-- ==============================================================================
+-- 10. AUTOMATIC PROFILE CREATION TRIGGER FOR AUTH USERS
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+    new_comm_id TEXT;
+BEGIN
+    -- Generate unique 8-digit communication ID
+    LOOP
+        new_comm_id := floor(10000000 + random() * 90000000)::TEXT;
+        EXIT WHEN NOT EXISTS (SELECT 1 FROM public.profiles WHERE communication_id = new_comm_id);
+    END LOOP;
+
+    INSERT INTO public.profiles (id, email, display_name, communication_id, is_online, last_seen_at)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(
+            NEW.raw_user_meta_data->>'full_name',
+            NEW.raw_user_meta_data->>'name',
+            split_part(NEW.email, '@', 1)
+        ),
+        new_comm_id,
+        true,
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        display_name = COALESCE(EXCLUDED.display_name, public.profiles.display_name);
+
+    INSERT INTO public.user_settings (user_id)
+    VALUES (NEW.id)
+    ON CONFLICT (user_id) DO NOTHING;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger execution on auth.users table
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+

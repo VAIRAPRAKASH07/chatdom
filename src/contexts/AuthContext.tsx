@@ -22,6 +22,7 @@ export interface AccountSummary {
 
 interface OtpResult {
   error?: string;
+  mockOtpCode?: string;
 }
 
 interface AuthContextType {
@@ -72,11 +73,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await loadLiveUser(session.user.id, session.user.email);
         }
 
-        // Listen for auth state changes (covers OTP verification callback)
+        // Listen for auth state changes (covers OTP verification callback and OAuth redirect)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (event === 'SIGNED_IN' && session?.user) {
+          if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
             await loadLiveUser(session.user.id, session.user.email);
             setIsRegisterOpen(false);
+            setIsGoogleModalOpen(false);
           } else if (event === 'SIGNED_OUT') {
             setUser(null);
             setProfile(null);
@@ -109,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser({ id: userId, email });
     let prof: Profile | null = null;
     
-    // Attempt 1
+    // Fetch profile
     const { data: prof1 } = await supabase!
       .from('profiles')
       .select('*')
@@ -132,9 +134,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Fallback: If DB trigger is not created yet, client-side auto-provision profile
     if (!prof) {
       const generatedCommId = generateServerCommunicationId();
+      const { data: { user: currentUser } } = await supabase!.auth.getUser();
+      const metaName = currentUser?.user_metadata?.full_name || currentUser?.user_metadata?.name;
+
       const newProf: Profile = {
         id: userId,
-        display_name: email ? email.split('@')[0] : `User ${userId.slice(0, 6)}`,
+        display_name: metaName || (email ? email.split('@')[0] : `User ${userId.slice(0, 6)}`),
         communication_id: generatedCommId,
         is_online: true,
         last_seen_at: new Date().toISOString(),
@@ -219,18 +224,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 1. Check if email already exists in Database / Profiles
     if (isLiveSupabaseConfigured && supabase) {
       try {
-        // RPC check first
-        const { data: existsRpc } = await supabase.rpc('check_email_exists', { 
-          email_input: trimmedEmail 
-        });
-
-        if (existsRpc) {
-          return { 
-            error: 'You already have an account with this email. Please sign in instead.' 
-          };
-        }
-
-        // Table check fallback
         const { data: existingProf } = await supabase
           .from('profiles')
           .select('id')
@@ -265,7 +258,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           options: {
             data: username ? { full_name: username } : undefined,
             shouldCreateUser: true,
-            emailRedirectTo: undefined, // OTP code flow
           },
         });
 
@@ -277,9 +269,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: err.message || 'Failed to send verification email.' };
       }
     } else {
-      // Local Sandbox simulation
-      console.info('[Sandbox] OTP sent to:', trimmedEmail);
-      return {};
+      // Sandbox mode OTP code generation
+      const mockCode = Math.floor(100000 + Math.random() * 900000).toString();
+      sessionStorage.setItem(`sandbox_otp_${trimmedEmail}`, mockCode);
+      if (username) {
+        sessionStorage.setItem(`sandbox_username_${trimmedEmail}`, username);
+      }
+      return { mockOtpCode: mockCode };
     }
   };
 
@@ -321,22 +317,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: err.message || 'Verification failed. Please enter the correct OTP code.' };
       }
     } else {
-      // Local Sandbox OTP validation
-      if (!/^\d{6}$/.test(trimmedToken)) {
-        return { error: 'Please enter a valid 6-digit verification code.' };
+      // Sandbox OTP validation
+      const savedCode = sessionStorage.getItem(`sandbox_otp_${trimmedEmail}`) || '123456';
+      if (trimmedToken !== savedCode && trimmedToken !== '123456') {
+        return { error: `Invalid code. Sandbox verification code is ${savedCode}` };
       }
 
-      const existsInMock = Object.values(mockAccountsDatabase).some(
-        (acc) => acc.email.toLowerCase() === trimmedEmail
-      );
-      if (existsInMock) {
-        return { error: 'You already have an account with this email. Please sign in instead.' };
-      }
-
-      const userId = `user-otp-${Math.random().toString(36).slice(2, 9)}`;
-      const name = trimmedEmail.split('@')[0];
+      const savedName = sessionStorage.getItem(`sandbox_username_${trimmedEmail}`) || trimmedEmail.split('@')[0];
+      const userId = `user-${Math.random().toString(36).slice(2, 9)}`;
       const commId = generateServerCommunicationId();
-      loadMockUser(userId, trimmedEmail, name, commId, true);
+      loadMockUser(userId, trimmedEmail, savedName, commId, true);
       return {};
     }
   };
@@ -351,26 +341,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             redirectTo: window.location.origin,
           },
         });
-        if (error) throw error;
+        if (error) {
+          throw new Error(error.message || 'Google OAuth failed. Please ensure Google Provider is enabled in Supabase Dashboard.');
+        }
       } else {
-        // Sandbox simulation
+        // Local Sandbox mode fallback
         await new Promise((r) => setTimeout(r, 400));
-        const email = customEmail || 'demo@messager.dev';
-        const name = customName || 'Demo User';
+        const email = customEmail || 'user@example.com';
+        const name = customName || email.split('@')[0];
         const existingAcc = Object.values(mockAccountsDatabase).find((a) => a.email.toLowerCase() === email.toLowerCase());
-        const userId = existingAcc ? existingAcc.authUserId : `user-${Math.random().toString(36).slice(2, 9)}`;
+        const userId = existingAcc ? existingAcc.authUserId : `user-google-${Math.random().toString(36).slice(2, 9)}`;
         const isNew = !mockAccountsDatabase[userId];
         loadMockUser(userId, email, name, undefined, isNew);
       }
     } catch (err: any) {
-      if (isLiveSupabaseConfigured) {
-        throw new Error(err.message || 'Google OAuth failed. Please check Supabase Google Provider configuration.');
-      } else {
-        const email = customEmail || 'demo@messager.dev';
-        const name = customName || 'Demo User';
-        const userId = `user-local-${Math.random().toString(36).slice(2, 9)}`;
-        loadMockUser(userId, email, name, undefined, true);
-      }
+      console.error('Google Auth Error:', err);
+      throw new Error(err.message || 'Google authentication failed.');
     } finally {
       setIsLoading(false);
     }
