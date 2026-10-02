@@ -123,10 +123,24 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose })
                 setEmail(e.target.value);
                 if (error) setError('');
               }}
-              error={error}
+              error={error && !error.includes('already have an account') ? error : undefined}
               autoFocus
               leftIcon={<Mail className="w-4 h-4" />}
             />
+
+            {error && error.includes('already have an account') && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300 space-y-2">
+                <p className="font-semibold">{error}</p>
+                <button
+                  type="button"
+                  onClick={handleGoogleAuth}
+                  className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs transition-colors shadow-xs"
+                >
+                  Sign In with Google Instead →
+                </button>
+              </div>
+            )}
+
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               A 6-digit verification code will be sent to this address. No password required.
             </p>

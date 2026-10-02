@@ -11,7 +11,7 @@ interface GoogleAuthModalProps {
 }
 
 export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClose }) => {
-  const { signInWithGoogle, isLoading } = useAuth();
+  const { signInWithGoogle, openRegisterModal, isLoading } = useAuth();
   const [googleEmail, setGoogleEmail] = useState('');
   const [googleName, setGoogleName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -170,8 +170,21 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
             <p className="text-xs font-semibold text-rose-500">{error}</p>
           )}
 
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-between text-xs">
+            <span className="text-slate-600 dark:text-slate-400">First time here?</span>
+            <button
+              type="button"
+              onClick={() => {
+                handleClose();
+                openRegisterModal();
+              }}
+              className="font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+            >
+              Sign Up with Email OTP →
+            </button>
+          </div>
+
           <div className="pt-2 flex items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
-            {/* Recursion / Back button */}
             <Button
               type="button"
               variant="ghost"

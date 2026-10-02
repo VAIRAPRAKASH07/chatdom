@@ -107,29 +107,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Load a real Supabase user's profile
   const loadLiveUser = async (userId: string, email?: string) => {
     setUser({ id: userId, email });
-    const { data: prof } = await supabase!
+    let prof: Profile | null = null;
+    
+    // Attempt 1
+    const { data: prof1 } = await supabase!
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single();
-    if (prof) {
-      setProfile(prof);
+      .maybeSingle();
+    
+    if (prof1) {
+      prof = prof1;
     } else {
-      // Profile not yet created (trigger may still be running) — retry once
+      // Retry after 1s (trigger handling)
       await new Promise((r) => setTimeout(r, 1000));
       const { data: prof2 } = await supabase!
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
-      if (prof2) setProfile(prof2);
+        .maybeSingle();
+      if (prof2) prof = prof2;
     }
+
+    // Fallback: If DB trigger is not created yet, client-side auto-provision profile
+    if (!prof) {
+      const generatedCommId = generateServerCommunicationId();
+      const newProf: Profile = {
+        id: userId,
+        display_name: email ? email.split('@')[0] : `User ${userId.slice(0, 6)}`,
+        communication_id: generatedCommId,
+        is_online: true,
+        last_seen_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await supabase!.from('profiles').upsert(newProf);
+      prof = newProf;
+    }
+
+    setProfile(prof);
+
+    // Check if newly created user to trigger onboarding
+    const isRecentlyCreated = new Date(prof.created_at).getTime() > Date.now() - 30000;
+    if (isRecentlyCreated) {
+      setJustGeneratedCommId(prof.communication_id);
+      setIsOnboarding(true);
+    }
+
     const { data: sett } = await supabase!
       .from('user_settings')
       .select('*')
       .eq('user_id', userId)
-      .single();
-    if (sett) setSettings(sett);
+      .maybeSingle();
+
+    if (sett) {
+      setSettings(sett);
+    } else {
+      const defaultSettings: UserSettings = {
+        user_id: userId,
+        privacy_messaging: 'everyone',
+        privacy_thoughts: 'contacts',
+        privacy_profile_photo: 'everyone',
+        privacy_online: 'contacts',
+        privacy_last_seen: 'contacts',
+        read_receipts_enabled: true,
+        notification_preview: true,
+        sound_enabled: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await supabase!.from('user_settings').upsert(defaultSettings);
+      setSettings(defaultSettings);
+    }
   };
 
   const loadMockUser = (userId: string, email: string, name: string, commId?: string, isNew = false) => {
@@ -165,39 +214,128 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ─── Send OTP Email ────────────────────────────────────────────────────────
   const sendOtpEmail = async (email: string): Promise<OtpResult> => {
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // 1. Check if email already exists in Database / Profiles
+    if (isLiveSupabaseConfigured && supabase) {
+      try {
+        // RPC check first
+        const { data: existsRpc } = await supabase.rpc('check_email_exists', { 
+          email_input: trimmedEmail 
+        });
+
+        if (existsRpc) {
+          return { 
+            error: 'You already have an account with this email. Please sign in instead.' 
+          };
+        }
+
+        // Table check fallback
+        const { data: existingProf } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', trimmedEmail)
+          .maybeSingle();
+
+        if (existingProf) {
+          return { 
+            error: 'You already have an account with this email. Please sign in instead.' 
+          };
+        }
+      } catch (err) {
+        console.warn('Pre-signup email check warning:', err);
+      }
+    } else {
+      // Local Sandbox check
+      const existsInMock = Object.values(mockAccountsDatabase).some(
+        (acc) => acc.email.toLowerCase() === trimmedEmail
+      );
+      if (existsInMock) {
+        return { 
+          error: 'You already have an account with this email. Please sign in instead.' 
+        };
+      }
+    }
+
+    // 2. Send OTP Email for NEW users
     if (isLiveSupabaseConfigured && supabase) {
       try {
         const { error } = await supabase.auth.signInWithOtp({
-          email,
+          email: trimmedEmail,
           options: {
             shouldCreateUser: true,
-            emailRedirectTo: undefined, // OTP code flow, not magic link
+            emailRedirectTo: undefined, // OTP code flow
           },
         });
-        if (error) return { error: error.message };
+
+        if (error) {
+          return { error: error.message };
+        }
         return {};
       } catch (err: any) {
-        console.warn('[Supabase] Unreachable, falling back to local verification:', err);
-        return {};
+        return { error: err.message || 'Failed to send verification email.' };
       }
     } else {
       // Local Sandbox simulation
-      console.info('[Sandbox] OTP would be sent to:', email);
+      console.info('[Sandbox] OTP sent to:', trimmedEmail);
       return {};
     }
   };
 
   // ─── Verify OTP Code ───────────────────────────────────────────────────────
   const verifyOtpCode = async (email: string, token: string): Promise<OtpResult> => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedToken = token.trim();
+
     if (isLiveSupabaseConfigured && supabase) {
-      // onAuthStateChange will fire SIGNED_IN and loadLiveUser handles the rest
-      return {};
+      try {
+        // First try email type verification
+        const { data, error } = await supabase.auth.verifyOtp({
+          email: trimmedEmail,
+          token: trimmedToken,
+          type: 'email',
+        });
+
+        if (error || !data.user) {
+          // Retry with 'signup' type verification
+          const { data: signupData, error: signupError } = await supabase.auth.verifyOtp({
+            email: trimmedEmail,
+            token: trimmedToken,
+            type: 'signup',
+          });
+
+          if (signupError || !signupData.user) {
+            return { 
+              error: signupError?.message || error?.message || 'Invalid or expired 6-digit verification code.' 
+            };
+          }
+
+          await loadLiveUser(signupData.user.id, signupData.user.email);
+          return {};
+        }
+
+        await loadLiveUser(data.user.id, data.user.email);
+        return {};
+      } catch (err: any) {
+        return { error: err.message || 'Verification failed. Please enter the correct OTP code.' };
+      }
     } else {
-      // Sandbox simulation
+      // Local Sandbox OTP validation
+      if (!/^\d{6}$/.test(trimmedToken)) {
+        return { error: 'Please enter a valid 6-digit verification code.' };
+      }
+
+      const existsInMock = Object.values(mockAccountsDatabase).some(
+        (acc) => acc.email.toLowerCase() === trimmedEmail
+      );
+      if (existsInMock) {
+        return { error: 'You already have an account with this email. Please sign in instead.' };
+      }
+
       const userId = `user-otp-${Math.random().toString(36).slice(2, 9)}`;
-      const name = email.split('@')[0];
+      const name = trimmedEmail.split('@')[0];
       const commId = generateServerCommunicationId();
-      loadMockUser(userId, email, name, commId, true);
+      loadMockUser(userId, trimmedEmail, name, commId, true);
       return {};
     }
   };
@@ -223,12 +361,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const isNew = !mockAccountsDatabase[userId];
         loadMockUser(userId, email, name, undefined, isNew);
       }
-    } catch (err) {
-      console.warn('Google Sign-In or Supabase host issue, logging in locally:', err);
-      const email = customEmail || 'demo@messager.dev';
-      const name = customName || 'Demo User';
-      const userId = `user-local-${Math.random().toString(36).slice(2, 9)}`;
-      loadMockUser(userId, email, name, undefined, true);
+    } catch (err: any) {
+      if (isLiveSupabaseConfigured) {
+        throw new Error(err.message || 'Google OAuth failed. Please check Supabase Google Provider configuration.');
+      } else {
+        const email = customEmail || 'demo@messager.dev';
+        const name = customName || 'Demo User';
+        const userId = `user-local-${Math.random().toString(36).slice(2, 9)}`;
+        loadMockUser(userId, email, name, undefined, true);
+      }
     } finally {
       setIsLoading(false);
     }

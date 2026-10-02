@@ -71,6 +71,7 @@ $$ LANGUAGE plpgsql VOLATILE SECURITY DEFINER;
 -- ==============================================================================
 CREATE TABLE public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT,
     display_name TEXT NOT NULL,
     avatar_url TEXT,
     bio TEXT DEFAULT '',
@@ -83,6 +84,7 @@ CREATE TABLE public.profiles (
 );
 
 CREATE INDEX idx_profiles_comm_id ON public.profiles(communication_id);
+CREATE INDEX idx_profiles_email ON public.profiles(LOWER(email));
 
 CREATE TABLE public.communication_ids (
     id BIGSERIAL PRIMARY KEY,
@@ -257,8 +259,21 @@ CREATE TABLE public.reports (
 );
 
 -- ==============================================================================
--- 9. TRIGGERS: AUTOMATIC ONBOARDING & PROFILE INITIALIZATION
+-- 9. RPC FUNCTION: EMAIL EXISTENCE CHECK & AUTOMATIC PROFILE INITIALIZATION
 -- ==============================================================================
+CREATE OR REPLACE FUNCTION public.check_email_exists(email_input TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM auth.users WHERE LOWER(email) = LOWER(TRIM(email_input))
+    ) OR EXISTS (
+        SELECT 1 FROM public.profiles WHERE LOWER(email) = LOWER(TRIM(email_input))
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.check_email_exists(TEXT) TO anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -270,6 +285,7 @@ BEGIN
     raw_name := COALESCE(
         NEW.raw_user_meta_data->>'full_name',
         NEW.raw_user_meta_data->>'name',
+        INITCAP(split_part(NEW.email, '@', 1)),
         'User ' || substr(NEW.id::text, 1, 6)
     );
     avatar := NEW.raw_user_meta_data->>'avatar_url';
@@ -277,17 +293,20 @@ BEGIN
     -- Generate permanent unique 8-digit Communication ID
     new_comm_id := public.generate_unique_communication_id(8);
     
-    -- Insert profile
-    INSERT INTO public.profiles (id, display_name, avatar_url, communication_id)
-    VALUES (NEW.id, raw_name, avatar, new_comm_id);
+    -- Insert profile with email
+    INSERT INTO public.profiles (id, email, display_name, avatar_url, communication_id)
+    VALUES (NEW.id, LOWER(NEW.email), raw_name, avatar, new_comm_id)
+    ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
     
     -- Record in registry
     INSERT INTO public.communication_ids (code, user_id)
-    VALUES (new_comm_id, NEW.id);
+    VALUES (new_comm_id, NEW.id)
+    ON CONFLICT DO NOTHING;
     
     -- Create default user settings
     INSERT INTO public.user_settings (user_id)
-    VALUES (NEW.id);
+    VALUES (NEW.id)
+    ON CONFLICT DO NOTHING;
     
     RETURN NEW;
 END;
