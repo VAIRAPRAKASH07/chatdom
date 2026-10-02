@@ -376,8 +376,19 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cleanId = queryId.replace(/\s+/g, '');
     if (cleanId.length < 6) return null;
 
-    // Simulate safe public search (no email/uuid leakage)
-    await new Promise((r) => setTimeout(r, 250));
+    if (isLiveSupabaseConfigured && supabase) {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('communication_id', cleanId)
+          .maybeSingle();
+
+        if (data) return data;
+      } catch (err) {
+        console.error('Failed to search profile by communication_id:', err);
+      }
+    }
 
     // Check public personas
     const personaMatch = PUBLIC_DISCOVERABLE_PERSONAS.find((p) => p.communication_id === cleanId);
@@ -395,8 +406,27 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Send Contact Request
   const sendContactRequest = async (targetUserId: string): Promise<boolean> => {
     if (!user || !profile || targetUserId === user.id) return false;
-    const target = PUBLIC_DISCOVERABLE_PERSONAS.find((p) => p.id === targetUserId);
+
+    let target = PUBLIC_DISCOVERABLE_PERSONAS.find((p) => p.id === targetUserId);
+
+    if (!target && isLiveSupabaseConfigured && supabase) {
+      const { data } = await supabase.from('profiles').select('*').eq('id', targetUserId).maybeSingle();
+      if (data) target = data;
+    }
+
     if (!target) return false;
+
+    if (isLiveSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('contact_requests').insert({
+          sender_id: user.id,
+          receiver_id: targetUserId,
+          status: 'pending',
+        });
+      } catch (err) {
+        console.error('Failed to send contact request to DB:', err);
+      }
+    }
 
     const newReq: ContactRequest = {
       id: `req-${Date.now()}`,
